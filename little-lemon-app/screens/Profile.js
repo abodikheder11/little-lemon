@@ -24,17 +24,16 @@ export default function ProfilePage({ navigation }) {
   const [email, setEmail] = useState("");
   const [phoneNumber,setPhoneNumber] = useState("");
   useEffect(() => {
-    const loadImage = async () => {
-      const savedImage = await AsyncStorage.getItem("profileImage");
-      if (savedImage) {
-        setImage(savedImage);
-      }
-    };
+ 
     const getInfo = async () => {
       const firstName = await AsyncStorage.getItem("firstName");
       const lastName = await AsyncStorage.getItem("lastName");
       const email = await AsyncStorage.getItem("email");
       const phoneNumber = await AsyncStorage.getItem("phoneNumber");
+      const savedImage = await AsyncStorage.getItem("profileImage");
+      if (savedImage) {
+        setImage(savedImage);
+      }
       if (firstName) {
         setFirstName(firstName);
       }
@@ -48,7 +47,13 @@ export default function ProfilePage({ navigation }) {
         setPhoneNumber(phoneNumber);
       }
     };
-    loadImage();
+    const verifyUser = async()=>{
+      const isLoggedIn = await AsyncStorage.getItem("userSignedIn");
+      if(!isLoggedIn){
+        navigation.navigate("OnBoarding");
+      }
+    }
+    verifyUser();
     getInfo();
   }, []);
 
@@ -74,6 +79,7 @@ export default function ProfilePage({ navigation }) {
   };
   const logout = async () => {
     await AsyncStorage.clear();
+    await AsyncStorage.setItem("userSignedIn" , JSON.stringify(false));
     navigation.navigate("OnBoarding");
   };
 
@@ -88,11 +94,18 @@ export default function ProfilePage({ navigation }) {
       console.error(error);
     }
   };
+  // const saveImage = async()=>{
+  //   try {
+  //     await AsyncStorage.setItem("")
+  //   } catch (error) {
+      
+  //   }
+  // }
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.appBar}>
-        <Pressable style={styles.button}>
+        <Pressable style={styles.button} onPress={()=>navigation.pop()}>
           <Icon name="arrow-back" color="#fff" size={24} />
         </Pressable>
         <Image source={require("../assets/Logo.png")} style={styles.logo} />
@@ -226,7 +239,7 @@ const styles = StyleSheet.create({
   },
   appBarPerson: {
     height: 50,
-    width: 90,
+    width: 50,
     resizeMode: "cover  ",
     borderRadius: 40,
   },
