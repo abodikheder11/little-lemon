@@ -23,7 +23,8 @@ export default function OnBoarding({ navigation }) {
       await AsyncStorage.setItem("email", email);
       await AsyncStorage.setItem("firstName", firstName);
       await AsyncStorage.setItem("lastName",lastName);
-      navigation.navigate("ProfilePage");
+      await AsyncStorage.setItem("userSignedIn" , JSON.stringify(true));
+      navigation.navigate("Profile");
     } catch (error) {
       console.error(error);
     }
