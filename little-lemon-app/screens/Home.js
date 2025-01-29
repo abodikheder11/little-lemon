@@ -8,114 +8,131 @@ import {
   Text,
   Pressable,
   FlatList,
+  ActivityIndicator,
+  TextInput,
 } from "react-native";
-import * as SQLite from 'expo-sqlite';
-
-
-const db = SQLite.openDatabaseAsync('litte_lemon.db')
+import {
+  initializeDB,
+  getCategories,
+  filterByCategories,
+  getAllMenuItems,
+  syncMenuData,
+  searchMenuItems,
+} from "../Database";
 
 export default function HomePage({ navigation }) {
-  const [image, setImage] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [data, setData] = useState([]);
+  const [menuData, setMenuData] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [profile, setProfile] = useState({
+    firstName: "",
+    lastName: "",
+    image: "",
+  });
 
   useEffect(() => {
-    const initializeDB = () => {
-      db.transaction(tx => {
-        tx.executeSql(
-          'CREATE TABLE IF NOT EXISTS menu (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, description TEXT, price REAL, image TEXT);',
-          [],
-          () => console.log('Table created successfully'),
-          (_, error) => console.error('Error creating table:', error)
-        );
-      });
-    };
-
-    const fetchDataFromServer = async () => {
+    const initializeApp = async () => {
       try {
-        const response = await fetch(
-          "https://raw.githubusercontent.com/Meta-Mobile-Developer-PC/Working-With-Data-API/main/capstone.json"
-        );
-        const json = await response.json();
-        const menuItems = json.menu;
-
-        db.transaction(tx => {
-          tx.executeSql('DELETE FROM menu;', [], () => {
-            menuItems.forEach(item => {
-              tx.executeSql(
-                'INSERT INTO menu (name, description, price, image) VALUES (?, ?, ?, ?);',
-                [item.name, item.description, item.price, item.image],
-                () => console.log('Item inserted successfully'),
-                (_, error) => console.error('Error inserting item:', error)
-              );
-            });
-          });
-        });
-
-        setData(menuItems);
+        await initializeDB();
+        await checkAuth();
+        await loadProfile();
+        await loadMenuData();
+        const cats = await getCategories();
+        setCategories(cats);
       } catch (error) {
-        console.error(error);
+        console.error("Initialization error:", error);
       } finally {
         setIsLoading(false);
       }
     };
-
-    const loadDataFromDB = () => {
-      db.transaction(tx => {
-        tx.executeSql(
-          'SELECT * FROM menu;',
-          [],
-          (_, { rows: { _array } }) => {
-            if (_array.length > 0) {
-              setData(_array);
-            } else {
-              fetchDataFromServer();
-            }
-          },
-          (_, error) => console.error('Error loading data:', error)
-        );
-      });
-    };
-
-    const getInfo = async () => {
-      const firstName = await AsyncStorage.getItem("firstName");
-      const lastName = await AsyncStorage.getItem("lastName");
-      const email = await AsyncStorage.getItem("email");
-      const phoneNumber = await AsyncStorage.getItem("phoneNumber");
-      const savedImage = await AsyncStorage.getItem("profileImage");
-      if (savedImage) {
-        setImage(savedImage);
-      }
-      if (firstName) {
-        setFirstName(firstName);
-      }
-      if (lastName) {
-        setLastName(lastName);
-      }
-      if (email) {
-        setEmail(email);
-      }
-      if (phoneNumber) {
-        setPhoneNumber(phoneNumber);
-      }
-    };
-    const verifyUser = async () => {
-      const isLoggedIn = await AsyncStorage.getItem("userSignedIn");
-      if (!isLoggedIn) {
-        navigation.navigate("OnBoarding");
-      }
-    };
-    initializeDB();
-    verifyUser();
-    getInfo();
-    loadDataFromDB();
-
+    initializeApp();
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const applyFilters = async () => {
+      try {
+        const filtered = await searchMenuItems(
+          debouncedSearchTerm,
+          selectedCategories
+        );
+        setMenuData(filtered);
+      } catch (error) {
+        console.error("Filter error:", error);
+      }
+    };
+    applyFilters();
+  }, [debouncedSearchTerm, selectedCategories]);
+
+  useEffect(() => {
+    const handleCategoryFilter = async () => {
+      try {
+        const filteredData = await filterByCategories(selectedCategories);
+        setMenuData(filteredData);
+      } catch (error) {
+        console.error("Filter error:", error);
+      }
+    };
+    handleCategoryFilter();
+  }, [selectedCategories]);
+
+  const loadMenuData = async () => {
+    try {
+      let localData = await getAllMenuItems();
+      if (localData.length === 0) {
+        const apiData = await fetchAPIData();
+        await syncMenuData(apiData);
+        localData = await getAllMenuItems();
+      }
+      setMenuData(localData);
+    } catch (error) {
+      console.error("Data load error:", error);
+    }
+  };
+
+  const fetchAPIData = async () => {
+    try {
+      const response = await fetch(
+        "https://raw.githubusercontent.com/Meta-Mobile-Developer-PC/Working-With-Data-API/main/capstone.json"
+      );
+      const { menu } = await response.json();
+      return menu;
+    } catch (error) {
+      console.error("API error:", error);
+      return [];
+    }
+  };
+
+  const checkAuth = async () => {
+    const isLoggedIn = await AsyncStorage.getItem("userSignedIn");
+    if (!isLoggedIn) navigation.navigate("OnBoarding");
+  };
+
+  const loadProfile = async () => {
+    const [firstName, lastName, image] = await Promise.all([
+      AsyncStorage.getItem("firstName"),
+      AsyncStorage.getItem("lastName"),
+      AsyncStorage.getItem("profileImage"),
+    ]);
+    setProfile({ firstName, lastName, image });
+  };
+
+  const toggleCategory = (category) => {
+    setSelectedCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
+    );
+  };
   const Item = ({ title, price, description, image }) => (
     <View style={styles.item}>
       <Text style={styles.title}>{title}</Text>
@@ -131,6 +148,7 @@ export default function HomePage({ navigation }) {
       <Text style={styles.price}>${price}</Text>
     </View>
   );
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -140,13 +158,16 @@ export default function HomePage({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.appBar}>
         <View style={{ width: 30 }}></View>
         <Image source={require("../assets/Logo.png")} style={styles.logo} />
         <Pressable onPress={() => navigation.navigate("Profile")}>
-          {image ? (
-            <Image source={{ uri: image }} style={styles.appBarPerson} />
+          {profile.image ? (
+            <Image
+              source={{ uri: profile.image }}
+              style={styles.appBarPerson}
+            />
           ) : (
             <View style={styles.appBarflName}>
               <Text style={{ fontSize: 20, fontWeight: "bold", color: "#fff" }}>
@@ -171,31 +192,41 @@ export default function HomePage({ navigation }) {
           </Text>
           <Image source={require("../assets/Hero.png")} style={styles.image} />
         </View>
+        <TextInput style={styles.searchBox} placeholder="Search dishes.." onChangeText={setSearchTerm} value={searchTerm} />
       </View>
       <View>
         <Text style={{ fontSize: 24, fontWeight: "bold", margin: 20 }}>
           ORDER FOR DELIVERY!
         </Text>
-        <View style={{ flexDirection: "row" }}>
-          <Pressable style={styles.categories}>
-            <Text style={styles.categoriesText}>Starters</Text>
-          </Pressable>
-          <Pressable style={styles.categories}>
-            <Text style={styles.categoriesText}>Main</Text>
-          </Pressable>
-          <Pressable style={styles.categories}>
-            <Text style={styles.categoriesText}>Deserst</Text>
-          </Pressable>
-          <Pressable style={styles.categories}>
-            <Text style={styles.categoriesText}>Drinks</Text>
-          </Pressable>
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {categories.map((category, index) => (
+            <Pressable
+              key={category + index}
+              onPress={() => toggleCategory(category)}
+              style={[
+                styles.categories,
+                selectedCategories.includes(category) &&
+                  styles.selectedCategoryButton,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.categoriesText,
+                  selectedCategories.includes(category) &&
+                    styles.selectedCategoryText,
+                ]}
+              >
+                {category}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
       <View style={styles.divider}></View>
 
       <FlatList
         style={styles.list}
-        data={data}
+        data={menuData}
         renderItem={({ item }) => (
           <Item
             title={item.name}
@@ -208,11 +239,15 @@ export default function HomePage({ navigation }) {
           item.id ? item.id.toString() : Math.random().toString()
         }
         ItemSeparatorComponent={() => <View style={styles.separator}></View>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>
+            No dishes found matching your criteria
+          </Text>
+        }
       />
-    </ScrollView>
+    </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -300,6 +335,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
+  selectedCategoryButton: {
+    backgroundColor: "#4CAF50",
+    borderWidth: 2,
+    borderColor: "#388E3C",
+  },
+  selectedCategoryText: {
+    color: "#fff",
+  },
   divider: {
     width: "100%",
     backgroundColor: "#CCCCCC",
@@ -310,5 +353,20 @@ const styles = StyleSheet.create({
     width: 90,
     height: 100,
     borderRadius: 5,
+  },
+  searchBox: {
+    height: 40,
+    margin: 16,
+    padding: 8,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#495E57",
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
   },
 });
