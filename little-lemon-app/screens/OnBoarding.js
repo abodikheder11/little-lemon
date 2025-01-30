@@ -24,7 +24,7 @@ export default function OnBoarding({ navigation }) {
       await AsyncStorage.setItem("firstName", firstName);
       await AsyncStorage.setItem("lastName",lastName);
       await AsyncStorage.setItem("userSignedIn" , JSON.stringify(true));
-      navigation.navigate("Profile");
+      navigation.navigate("Home");
     } catch (error) {
       console.error(error);
     }
@@ -45,13 +45,13 @@ export default function OnBoarding({ navigation }) {
             onChangeText={setFirstName}
             placeholderTextColor="#8A8A8A"
           />
-          <Text style={styles.label}>Last Name</Text>
+          {/* <Text style={styles.label}>Last Name</Text>
           <TextInput
             style={styles.input}
             value={lastName}
             onChangeText={setLastName}
             placeholderTextColor="#8A8A8A"
-          />
+          /> */}
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
@@ -64,7 +64,7 @@ export default function OnBoarding({ navigation }) {
       </View>
 
       <View style={styles.footer}>
-        <Pressable style={styles.button} onPress={login}>
+        <Pressable style={styles.button} onPress={login} disabled={!firstName || !email}>
           <Text style={styles.buttonText}>Next</Text>
         </Pressable>
       </View>

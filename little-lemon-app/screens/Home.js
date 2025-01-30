@@ -158,7 +158,10 @@ export default function HomePage({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <FlatList
+  ListHeaderComponent={(
+    <>
+      {/* Keep all components before the list inside ListHeaderComponent */}
       <View style={styles.appBar}>
         <View style={{ width: 30 }}></View>
         <Image source={require("../assets/Logo.png")} style={styles.logo} />
@@ -171,24 +174,21 @@ export default function HomePage({ navigation }) {
           ) : (
             <View style={styles.appBarflName}>
               <Text style={{ fontSize: 20, fontWeight: "bold", color: "#fff" }}>
-                {`${firstName?.charAt(0)?.toUpperCase() || ""}${
-                  lastName?.charAt(0)?.toUpperCase() || ""
+                {`${profile.firstName?.charAt(0)?.toUpperCase() || ""}${
+                  profile.lastName?.charAt(0)?.toUpperCase() || ""
                 }`}
               </Text>
             </View>
           )}
         </Pressable>
       </View>
-
       <View style={styles.headerContainer}>
         <Text style={{ fontSize: 40, color: "#f4ce14" }}>Little Lemon</Text>
         <Text style={{ fontSize: 30, color: "#fff" }}>Chicago</Text>
         <View style={styles.innerContainer}>
-          <Text
-            style={{ fontSize: 18, color: "#fff", flex: 1, marginRight: 13 }}
-          >
-            We are family owned Mediterranean resturnat, focused on traditional
-            recipers server with a modern twist.
+          <Text style={{ fontSize: 18, color: "#fff", flex: 1, marginRight: 13 }}>
+            We are family-owned Mediterranean restaurant, focused on traditional
+            recipes served with a modern twist.
           </Text>
           <Image source={require("../assets/Hero.png")} style={styles.image} />
         </View>
@@ -223,37 +223,40 @@ export default function HomePage({ navigation }) {
         </ScrollView>
       </View>
       <View style={styles.divider}></View>
+    </>
+  )}
+  data={menuData}
+  ListHeaderComponentStyle ={styles.listContent}
+  renderItem={({ item }) => (
+    <Item
+      title={item.name}
+      price={item.price}
+      description={item.description}
+      image={item.image}
+    />
+  )}
+  keyExtractor={(item) =>
+    item.id ? item.id.toString() : Math.random().toString()
+  }
+  ItemSeparatorComponent={() => <View style={styles.separator}></View>}
+  ListEmptyComponent={
+    <Text style={styles.emptyText}>
+      No dishes found matching your criteria
+    </Text>
+  }
+/>
 
-      <FlatList
-        style={styles.list}
-        data={menuData}
-        renderItem={({ item }) => (
-          <Item
-            title={item.name}
-            price={item.price}
-            description={item.description}
-            image={item.image}
-          />
-        )}
-        keyExtractor={(item) =>
-          item.id ? item.id.toString() : Math.random().toString()
-        }
-        ItemSeparatorComponent={() => <View style={styles.separator}></View>}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            No dishes found matching your criteria
-          </Text>
-        }
-      />
-    </View>
   );
 }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  list: {
-    margin: 10,
+  list:{
+    margin :10
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   separator: {
     height: 1,

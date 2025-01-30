@@ -10,6 +10,7 @@ import {
   Button,
   TextInput,
   ScrollView,
+  Alert,
 } from "react-native";
 import CheckBox from "react-native-check-box";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -23,6 +24,8 @@ export default function ProfilePage({ navigation }) {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber,setPhoneNumber] = useState("");
+  const [isChecked, setIsChecked] = useState(false);
+
   useEffect(() => {
  
     const getInfo = async () => {
@@ -56,6 +59,20 @@ export default function ProfilePage({ navigation }) {
     verifyUser();
     getInfo();
   }, []);
+
+  const removeImage = async()=>{
+    Alert.alert(
+      "Remove Profile Picture",
+      "Are you sure you want to remove the profile picture ?",
+      [
+        {text:"Cancel"  ,style:"cancel"},
+        {text:"Remove" , style:"destructive" , onPress : ()=>{
+          setImage(null);
+          AsyncStorage.removeItem("profileImage");
+        } }
+      ]
+    )
+  }
 
   const pickImage = async () => {
     const permissionResult =
@@ -94,13 +111,6 @@ export default function ProfilePage({ navigation }) {
       console.error(error);
     }
   };
-  // const saveImage = async()=>{
-  //   try {
-  //     await AsyncStorage.setItem("")
-  //   } catch (error) {
-      
-  //   }
-  // }
 
   return (
     <ScrollView style={styles.container}>
@@ -141,10 +151,10 @@ export default function ProfilePage({ navigation }) {
               </View>
             )}
           </Pressable>
-          <Pressable style={styles.changeBotton}>
+          <Pressable style={styles.changeBotton} onPress={pickImage}>
             <Text style={{ color: "#fff" }}>Change</Text>
           </Pressable>
-          <Pressable style={styles.cancelBotton}>
+          <Pressable style={styles.cancelBotton} onPress={removeImage} disabled={!image}>
             <Text style={{ color: "#4a6055" }}>Remove</Text>
           </Pressable>
         </View>
@@ -185,10 +195,14 @@ export default function ProfilePage({ navigation }) {
         </View>
         <View style={styles.notifications}>
           <Text style={{ fontSize: 24 }}>Email notifications</Text>
-          {/* <CheckBox rightText="Order Statuses" />
-          <CheckBox rightText="Password Changes" />
-          <CheckBox rightText="Special Offers" />
-          <CheckBox rightText="New Sletter" /> */}
+          <CheckBox rightText="Order Statuses" isChecked={isChecked} onClick={() => setIsChecked(!isChecked)}
+          checkBoxColor={isChecked ? "#4a6055" : "#ccc"} />
+          <CheckBox rightText="Password Changes"  isChecked={isChecked} onClick={() => setIsChecked(!isChecked)}
+          checkBoxColor={isChecked ? "#4a6055" : "#ccc"}/>
+          <CheckBox rightText="Special Offers"  isChecked={isChecked} onClick={() => setIsChecked(!isChecked)}
+          checkBoxColor={isChecked ? "#4a6055" : "#ccc"}/>
+          <CheckBox rightText="New Sletter"  isChecked={isChecked} onClick={() => setIsChecked(!isChecked)}
+          checkBoxColor={isChecked ? "#4a6055" : "#ccc"}/>
         </View>
         <Pressable color="yellow" style={styles.logoutBotton} onPress={logout}>
           <Text style={{ fontWeight: "500" }}>Log out</Text>
